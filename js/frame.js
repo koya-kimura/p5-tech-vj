@@ -25,14 +25,20 @@ class Frame {
 
         visualizeFaderValues(this.tex, faderValues, margin, margin + h + gap * 4 + w + w / 8 + w/9, w, w*0.7);
 
+        drawSpectrum(this.tex, spectrum, margin, margin + h + gap * 5 + w + w / 8 + w / 9 + w * 0.7, w, w*0.6);
+
+        drawFrequencyBands(this.tex, width-margin, margin, w*0.3);
+
         drawDateTime(this.tex, width - margin, height - margin, w*0.1, RIGHT);
 
         this.tex.noFill();
         this.tex.stroke(255, 50);
         this.tex.rect(margin*0.5, margin*0.5, width-margin, height-margin);
 
-        for(let i = 0; i < 10; i ++){
-            movingCircleOnRect(this.tex, millis() * 0.1 + i * 100, margin * 0.5, margin * 0.5, width - margin, height - margin);
+        for(let i = 0; i < 8; i ++){
+            const scl = map(abs(getPhaseWithEasing(count+i, 8, 1)%2-1), 0, 1, 0.005, 0.01);
+            const s = min(width, height) * scl;
+            movingCircleOnRect(this.tex, millis() * 0.1 + i * 100, margin * 0.5, margin * 0.5, width - margin, height - margin, s);
         }
     }
 
@@ -61,7 +67,7 @@ function visualizeGridState(tex, gridState, x, y, w, h, c = color(255), scl = 0.
     for (let i = 0; i < rows; i++) {
         for (let j = 0; j < cols; j++) {
             tex.stroke(128);  // グレーの枠線
-            if (gridState[i][j] === 1) {
+            if (gridState[i][j] === 0) {
                 tex.stroke(c);
                 tex.noFill();    // 黒
             } else {
@@ -96,7 +102,7 @@ function visualizeButtonState(tex, buttonState, x, y, w, h, orientation, c = col
 
     for (let i = 0; i < buttonState.length; i++) {
         tex.stroke(128);
-        if (buttonState[i] === 1) {
+        if (buttonState[i] === 0) {
             tex.stroke(c);
             tex.noFill();
         } else {
@@ -178,10 +184,7 @@ function drawDateTime(tex, x, y, s, align, c = color(255)) {
     tex.pop();
 }
 
-function movingCircleOnRect(tex, t, x, y, w, h, c = color(255)) {
-    // 円の半径
-    const r = min(width, height) * 0.005;
-
+function movingCircleOnRect(tex, t, x, y, w, h, r, c = color(255)) {
     // 四角形の周囲の長さを計算
     const perimeter = 2 * (w + h);
 
@@ -210,6 +213,72 @@ function movingCircleOnRect(tex, t, x, y, w, h, c = color(255)) {
     tex.noStroke();
     tex.fill(c);
     tex.circle(circleX, circleY, r);
+
+    tex.pop();
+}
+
+function drawSpectrum(tex, spectrum, x, y, w, h, c=color(255)) {
+    tex.push();
+    // スペクトラムの各周波数帯域をループ処理
+    for (let i = 0; i < spectrum.length; i++) {
+        // 四角形の幅を計算
+        let barWidth = w / spectrum.length;
+
+        // 四角形の高さを計算（スペクトラム値に基づく）
+        let barHeight = spectrum[i] * h;
+        // 塗りつぶしの色を設定（オプション）
+
+        // 四角形を描画
+        tex.noStroke();
+        tex.fill(c);
+        tex.rect(x + i * barWidth, y + h - barHeight, barWidth, barHeight);
+    }
+    tex.pop();
+}
+
+function drawFrequencyBands(tex, x, y, w, c = color(255)) {
+    const frequencyBands = ["bass", "lowMid", "mid", "highMid", "treble"];
+    const thresholdScale = [1.0, 0.95, 0.9, 0.8, 0.7];
+    const thresholdBasis = map(faderValues[7], 0, 1, 200, 255);
+
+    const paddingScl = 0.9;
+
+    tex.push();
+
+    // デバッグ用の境界線
+    // tex.stroke(255, 0, 0);
+    // tex.noFill();
+    // tex.rect(x - w, y, w, w * (1+paddingScl) * 5);
+
+    for (let i = 0; i < frequencyBands.length; i++) {
+        // バンドの位置計算（x座標を右端から左に向かって計算）
+        let bandX = x;
+        let bandY = i * w * (1 + paddingScl) + y;
+
+        // エネルギー値の取得
+        let energy = fft.getEnergy(frequencyBands[i]);
+
+        // 描画スタイルの設定
+        if (energy > thresholdBasis * thresholdScale[i]) {
+            tex.fill(c);
+            tex.noStroke();
+        } else {
+            tex.noFill();
+            tex.stroke(c);
+            tex.strokeWeight(2);
+        }
+
+        // 四角形の描画
+        tex.rect(bandX-w, bandY, w, w);
+
+        // テキストの描画
+        tex.noStroke();
+        tex.fill(c);
+        tex.textFont(BEBAS_FONT);
+        tex.textAlign(CENTER);
+        tex.textSize(w * 0.3);
+        tex.text(frequencyBands[i], bandX - w / 2, bandY + w * (1 + paddingScl*0.6));
+    }
 
     tex.pop();
 }
