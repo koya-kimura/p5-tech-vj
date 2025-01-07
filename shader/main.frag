@@ -1,12 +1,14 @@
-precision mediump float;
+precision highp float;
 
 varying vec2 vTexCoord;
 
+uniform vec2 u_resolution;
 uniform float u_time;
 uniform sampler2D u_mainTex;
 uniform sampler2D u_frameTex;
 
 float PI = 3.14159265358979;
+float TAU = 6.283185306;
 
 float random(vec2 st){
     return fract(sin(dot(st.xy,vec2(12.9898,78.233)))*43758.5453123);
@@ -32,26 +34,32 @@ vec2 mosaic(vec2 uv, float n){
     return floor(uv*n)/n;
 }
 
-void main(void) {
-    vec2 uv = vTexCoord;
+void main(void){
+    vec2 p=vTexCoord;
+    
+    // p=fract(p*5.);
+    
+    p=p*2.-1.;
+    if(u_resolution.x>u_resolution.y)p.x*=u_resolution.x/u_resolution.y;
+    else p.y*=u_resolution.y/u_resolution.x;
+    
+    p*=rot(u_time*.1);
+    
+    float l= length(p);
+    float a=atan(p.y,p.x);
+    float newAngle=mod(a,PI/4.);
+    newAngle=min(newAngle,PI/4.-newAngle);
+    vec2 uv=vec2(l*cos(newAngle),l*sin(newAngle));
+    
+    // uv = fract(uv*5.0);
 
-    vec2 texuv = uv;
-    texuv.x = abs(texuv.x-0.5);
+    // uv.y = 0.8;
 
-    if(random(vec2(u_time)) > 0.7){
-        texuv.y = 0.5;
-    }
+    // uv.x = vTexCoord.x;
+    
+    vec4 col= (l > 1.0 ? vec4(0) : texture2D(u_mainTex,uv)) + texture2D(u_frameTex,vTexCoord);
 
-    texuv*=rot(u_time*0.3);
-
-    if(random(vec2(u_time+0.4792)) > 0.7){
-        texuv = mosaic(uv, 100.);
-    }
-
-    texuv.x = fract(texuv.x);
-    texuv.y = fract(texuv.y);
-
-    vec4 col = texture2D(u_mainTex,texuv) + texture2D(u_frameTex, uv);
-
-    gl_FragColor = col;
+    vec4 debugTexCol = texture2D(u_mainTex, vTexCoord) + texture2D(u_frameTex,vTexCoord);
+    
+    gl_FragColor=debugTexCol;
 }
