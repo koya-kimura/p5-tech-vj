@@ -1,35 +1,26 @@
-const BPM = 130;
 let count;
 
-const scene = new Scene();
-const frame = new Frame();
+const sceneManager = new SceneManager(130, true);
+const terminal = new LogManager();
 
-let theShader;
+const COLOR_PALETTE = ["#10ed21", "#ed1938", "#0121ed", "#eded17", "#ed08ed", "#32eded"];
 
 let FLOW_LOGO;
-let FLOWER_IMAGE;
 
 let FONT_ARRAY = [];
 let DSEG14_FONT;
 let BEBAS_FONT;
 let DMSERIF_FONT;
-let JERSEY_FONT;
 let PLAYWRITE_FONT;
 let SIXTYFOUR_FONT;
 
-let cellInfo;
-let midiSuccess = false;
-
-let mic;
-let fft;
-let spectrum;
+const FULLSCREEN_KEY = 32;
 
 function preload(){
-    navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
-    theShader = loadShader("../shader/main.vert", "../shader/main.frag");
+    sceneManager.midiManager_.initializeMIDIDevices();
+    sceneManager.loadPostShader("../shader/main.vert", "../shader/main.frag");
 
     FLOW_LOGO = loadImageSafely("../asset/image/flow.png");
-    FLOWER_IMAGE = loadImageSafely("../asset/image/flower.jpg");
 
     DSEG14_FONT = loadFont("../asset/font/DSEG14ClassicMini-BoldItalic.ttf");
     BEBAS_FONT = loadFont("../asset/font/BebasNeue-Regular.ttf");
@@ -42,79 +33,33 @@ function preload(){
 
 function setup(){
     createCanvas(windowWidth, windowHeight, WEBGL);
-    background(0);
-
-    scene.setup();
-    frame.setup();
-
     pixelDensity(2);
+    noCursor();
 
-    mic = new p5.AudioIn();
-    mic.start();
-    mic.connect();
-
-    fft = new p5.FFT(0.8, 16);
-    fft.setInput(mic);
+    sceneManager.setup();
 }
 
 function draw(){
-    count = calculateBeatCount(BPM) + faderValues[8];
 
-    spectrum = fft.analyze();
+    count = frameCount * 0.01;
 
-    for(let i in spectrum){
-        spectrum[i] = map(spectrum[i], 0, 255, 0, 1);
-    }
+    clear();
 
-    background(0);
+    terminal.fpsLog();
 
-    for (let i = 0; i < 8; i++) {
-        for (let j = 0; j < 8; j++) {
-            gridOneShotState[i][j] = max(gridPressedState[i][j] - gridPrevState[i][j], 0);
-        }
-    }
-
-    scene.update();
-    scene.display();
-
-    frame.display();
-
-    shader(theShader);
-
-    theShader.setUniform("u_time", millis() * 0.001);
-    theShader.setUniform("u_resolution", [width, height]);
-    theShader.setUniform("u_mainTex", scene.getScene());
-    theShader.setUniform("u_frameTex", frame.getFrame());
-
-    theShader.setUniform("u_monoEnabled", gridState(6, 0, "TOGGLED")==1);
-    theShader.setUniform("u_invertEnabled", gridState(6, 1, "TOGGLED")==1);
-    theShader.setUniform("u_posterizationEnabled", gridState(6, 2, "TOGGLED") == 1);
-
-    rect(0, 0, width, height);
-
-    if (midiSuccess) {
-        midiOutputSend();
-    }
-
-    gridPrevState = structuredClone(gridPressedState);
+    sceneManager.update();
+    sceneManager.draw();
 }
 
 function windowResized(){
     resizeCanvas(windowWidth, windowHeight);
-
-    scene.setup();
-    frame.setup();
+    sceneManager.resize();
 }
 
 function keyPressed() {
-    if (keyCode === 32) {
+    if (keyCode === FULLSCREEN_KEY) {
         let fs = fullscreen();
         fullscreen(!fs);
-        if (fs) {
-            cursor();
-        } else {
-            noCursor();
-        }
     }
 }
 
@@ -124,7 +69,7 @@ function loadImageSafely(path) {
         (img) => img,
         // 失敗時のコールバック
         () => {
-            console.log(`Image not found: ${path}`);
+            terminal.log(`Image not found: ${path}`);
             return null;
         }
     );

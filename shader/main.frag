@@ -169,5 +169,5 @@ void main(void){
 
     vec4 debugTexCol=texture2D(u_mainTex,vTexCoord)+texture2D(u_frameTex,vTexCoord);
 
-    gl_FragColor=col;
+    gl_FragColor=debugTexCol;
 }

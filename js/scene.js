@@ -1,10 +1,5 @@
 class Scene {
     constructor() {
-        this.colorPalette = ["#10ed21", "#ed1938", "#0121ed", "#eded17", "#ed08ed", "#32eded"]
-
-
-        this.paletteLength = this.colorPalette.length;
-
         this.tex;
         this.canvasSize;
 

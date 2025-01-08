@@ -1,49 +1,42 @@
 class Frame {
-    constructor() {
-        this.tex;
-    }
-
-    setup(){
-        this.tex = createGraphics(width, height);
-    }
-
-    display(){
-        this.tex.clear();
+    display(tex, midiInfo, audioInfo){
+        tex.clear();
 
         const margin = min(width, height) * 0.1;
         const gap = height * 0.05;
 
         const w = width * 0.08;
         const h = w * FLOW_LOGO.height / FLOW_LOGO.width;
-        this.tex.image(FLOW_LOGO, margin, margin, w, h);
+        tex.image(FLOW_LOGO, margin, margin, w, h);
 
-        visualizeGridState(this.tex, gridPressedState, margin, margin+h+gap, w, w);
+        visualizeGridState(tex, midiInfo.gridPressedState, margin, margin+h+gap, w, w);
 
-        visualizeButtonState(this.tex, sideButtonToggleState, margin, margin + h + gap*2 + w, w, w/8, "horizontal");
+        visualizeButtonState(tex, midiInfo.sideButtonToggleState, margin, margin + h + gap*2 + w, w, w/8, "horizontal");
 
-        visualizeButtonState(this.tex, faderButtonToggleState, margin, margin + h + gap * 3 + w + w/8, w, w/9, "horizontal");
+        visualizeButtonState(tex, midiInfo.faderButtonToggleState, margin, margin + h + gap * 3 + w + w/8, w, w/9, "horizontal");
 
-        visualizeFaderValues(this.tex, faderValues, margin, margin + h + gap * 4 + w + w / 8 + w/9, w, w*0.7);
+        visualizeFaderValues(tex, midiInfo.faderValues, margin, margin + h + gap * 4 + w + w / 8 + w/9, w, w*0.7);
 
-        drawSpectrum(this.tex, spectrum, margin, margin + h + gap * 5 + w + w / 8 + w / 9 + w * 0.7, w, w*0.6);
+        const terminalWidth = w;
+        const terminalHeight = height * 0.15;
+        terminal.display(margin, margin + h + gap * 5 + w + w / 8 + w / 9 + w * 0.7, terminalWidth * 0.07, terminalHeight, tex);
 
-        drawFrequencyBands(this.tex, width-margin, margin, w*0.3);
+        drawFrequencyBands(tex, width-margin, margin, w*0.3);
 
-        drawDateTime(this.tex, width - margin, height - margin, w*0.1, RIGHT);
+        const spectrumWidth = w* 1.5;
+        const spectrumHeight = w * 0.6;
+        drawSpectrum(tex, audioInfo.spectrum, width - margin - spectrumWidth, height - margin - height * 0.15, spectrumWidth, spectrumHeight, true);
+        drawDateTime(tex, width - margin, height - margin, w*0.1, RIGHT);
 
-        this.tex.noFill();
-        this.tex.stroke(255, 50);
-        this.tex.rect(margin*0.5, margin*0.5, width-margin, height-margin);
+        tex.noFill();
+        tex.stroke(255, 50);
+        tex.rect(margin*0.5, margin*0.5, width-margin, height-margin);
 
         for(let i = 0; i < 8; i ++){
             const scl = map(abs(getPhaseWithEasing(count+i, 8, 1)%2-1), 0, 1, 0.005, 0.01);
             const s = min(width, height) * scl;
-            movingCircleOnRect(this.tex, millis() * 0.1 + i * 100, margin * 0.5, margin * 0.5, width - margin, height - margin, s);
+            movingCircleOnRect(tex, millis() * 0.1 + i * 100, margin * 0.5, margin * 0.5, width - margin, height - margin, s);
         }
-    }
-
-    getFrame(){
-        return this.tex;
     }
 }
 
@@ -157,7 +150,7 @@ function visualizeFaderValues(tex, faderValues, x, y, w, h, c=color(255)) {
  * 現在の日付と時刻を表示する関数
  * @param {p5.Graphics} tex - 描画先のテクスチャ
  * @param {number} x - X座標
- * @param {number} y - Y座標 
+ * @param {number} y - Y座標
  * @param {number} s - 文字サイズ
  * @param {string} align - テキストの揃え方('LEFT', 'CENTER', 'RIGHT')
  */
@@ -217,7 +210,7 @@ function movingCircleOnRect(tex, t, x, y, w, h, r, c = color(255)) {
     tex.pop();
 }
 
-function drawSpectrum(tex, spectrum, x, y, w, h, c=color(255)) {
+function drawSpectrum(tex, spectrum, x, y, w, h, isReverse = false, c=color(255)) {
     tex.push();
     // スペクトラムの各周波数帯域をループ処理
     for (let i = 0; i < spectrum.length; i++) {
@@ -225,7 +218,8 @@ function drawSpectrum(tex, spectrum, x, y, w, h, c=color(255)) {
         let barWidth = w / spectrum.length;
 
         // 四角形の高さを計算（スペクトラム値に基づく）
-        let barHeight = spectrum[i] * h;
+        const index = isReverse ? spectrum.length - 1 - i : i;
+        let barHeight = spectrum[index] * h;
         // 塗りつぶしの色を設定（オプション）
 
         // 四角形を描画
@@ -239,7 +233,7 @@ function drawSpectrum(tex, spectrum, x, y, w, h, c=color(255)) {
 function drawFrequencyBands(tex, x, y, w, c = color(255)) {
     const frequencyBands = ["bass", "lowMid", "mid", "highMid", "treble"];
     const thresholdScale = [1.0, 0.95, 0.9, 0.8, 0.7];
-    const thresholdBasis = map(faderValues[7], 0, 1, 200, 255);
+    const thresholdBasis = map(sceneManager.midiManager_.faderValues_[7], 0, 1, 200, 255);
 
     const paddingScl = 0.9;
 
@@ -256,7 +250,7 @@ function drawFrequencyBands(tex, x, y, w, c = color(255)) {
         let bandY = i * w * (1 + paddingScl) + y;
 
         // エネルギー値の取得
-        let energy = fft.getEnergy(frequencyBands[i]);
+        let energy = sceneManager.micAudioManager_.fft_.getEnergy(frequencyBands[i]);
 
         // 描画スタイルの設定
         if (energy > thresholdBasis * thresholdScale[i]) {

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="js/lib/p5.js"></script>
     <script src="js/lib/p5.sound.min.js"></script>
+    <script src="/js/lib/p5.generative-visual-music.js"></script>
     <title>"No-Name" made by p5.js</title>
     <link rel="icon" type="image/x-icon" href="/asset/image/favicon.ico">
     <style>
@@ -17,10 +18,27 @@
     </style>
 </head>
 <body>
-    <script src="/js/lib/p5.generative-visual-music.js"></script>
-    <script src="/js/midi.js"></script>
-    <script src="/js/scene.js"></script>
+    <!-- audio -->
+    <script src="/js/micAudioManager.js"></script>
+    
+    <!-- midi -->
+    <script src="/js/midi/MIDIManager.js"></script>
+    <script src="/js/midi/APCMiniMK2Manager.js"></script>
+
+    <!-- scenes -->
+    <script src="/js/scene/sampleScene.js"></script>
+    <script src="/js/scene/soundObjectScene.js"></script>
+
+    <!-- frame -->
     <script src="/js/frame.js"></script>
+
+    <!-- scene manager -->
+    <script src = "/js/sceneManager.js" ></script>
+
+    <!-- log -->
+    <script src ="/js/logManager.js" ></script>
+
+    <!-- main -->
     <script src="/js/main.js"></script>
 </body>
 </html>
