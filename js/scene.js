@@ -1,3 +1,6 @@
+
+// !!!!!!!!!!!ここから移植し続ける!!!!!!!!!!!
+
 class Scene {
     constructor() {
         this.tex;

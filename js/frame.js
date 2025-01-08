@@ -239,11 +239,6 @@ function drawFrequencyBands(tex, x, y, w, c = color(255)) {
 
     tex.push();
 
-    // デバッグ用の境界線
-    // tex.stroke(255, 0, 0);
-    // tex.noFill();
-    // tex.rect(x - w, y, w, w * (1+paddingScl) * 5);
-
     for (let i = 0; i < frequencyBands.length; i++) {
         // バンドの位置計算（x座標を右端から左に向かって計算）
         let bandX = x;

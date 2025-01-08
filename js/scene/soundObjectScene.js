@@ -3,12 +3,12 @@ class SoundObjectScene {
         this.layerAlpha_ = 0;
     }
 
-    update(){
-
+    midiAssign() {
+        this.layerAlpha_ = sceneManager.midiManager_.faderValues_[0] * 255;
     }
 
-    midiAssign(){
-        this.layerAlpha_ = sceneManager.midiManager_.faderValues_[0] * 255;
+    update(){
+
     }
 
     draw(tex, spectrum){

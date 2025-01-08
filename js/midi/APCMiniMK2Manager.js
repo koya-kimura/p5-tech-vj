@@ -1,11 +1,18 @@
+/**
+ * APC Mini MK2 MIDIコントローラーを管理するクラス
+ * MIDIManagerクラスを継承し、APC Mini MK2の特定の機能を実装
+ */
 class APCMiniMK2Manager extends MIDIManager {
     constructor() {
         super();
 
-        this.gridPressedState_ = Array(8).fill().map(() => Array(8).fill(0));
-        this.gridPrevState_ = Array(8).fill().map(() => Array(8).fill(0));
-        this.gridOneShotState_ = Array(8).fill().map(() => Array(8).fill(0));
-        this.gridToggleState_ = Array(8).fill().map(() => Array(8).fill(0));
+        // グリッドの状態を管理する配列
+        this.gridPressedState_ = Array(8).fill().map(() => Array(8).fill(0));  // 現在の押下状態
+        this.gridPrevState_ = Array(8).fill().map(() => Array(8).fill(0));     // 前回の押下状態
+        this.gridOneShotState_ = Array(8).fill().map(() => Array(8).fill(0));  // ワンショット状態
+        this.gridToggleState_ = Array(8).fill().map(() => Array(8).fill(0));   // トグル状態
+
+        // グリッドの各ボタンの動作タイプを定義
         this.gridStateType_ = [
             ["ONESHOT", "TOGGLED", "TOGGLED", "TOGGLED", "ONESHOT", "TOGGLED", "TOGGLED", "TOGGLED"],
             ["PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED"],
@@ -16,52 +23,82 @@ class APCMiniMK2Manager extends MIDIManager {
             ["PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED"],
             ["PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED", "PRESSED"],
         ]
-        this.faderValues_ = new Array(9).fill(0);
-        this.faderValuesPrev_ = new Array(9).fill(0);
-        this.faderButtonState_ = new Array(9).fill(0);
-        this.faderButtonToggleState_ = new Array(9).fill(0);
-        this.sideButtonState_ = new Array(8).fill(0);
-        this.sideButtonToggleState_ = new Array(8).fill(0);
+
+        // フェーダー関連の状態を管理する配列
+        this.faderValues_ = new Array(9).fill(0);             // 現在のフェーダー値
+        this.faderValuesPrev_ = new Array(9).fill(0);        // 前回のフェーダー値
+        this.faderButtonState_ = new Array(9).fill(0);       // フェーダーボタンの押下状態
+        this.faderButtonToggleState_ = new Array(9).fill(0); // フェーダーボタンのトグル状態
+
+        // サイドボタンの状態を管理する配列
+        this.sideButtonState_ = new Array(8).fill(0);        // サイドボタンの押下状態
+        this.sideButtonToggleState_ = new Array(8).fill(0);  // サイドボタンのトグル状態
     }
 
-    update(){
+    /**
+     * グリッドの状態を取得するメソッド
+     * @param {number} row - 行番号
+     * @param {number} col - 列番号
+     * @param {string} type - 状態タイプ（"TOGGLED", "ONESHOT", "PRESSED"）
+     * @return {number} 指定された状態の値
+     */
+    gridState(row, col, type = "TOGGLED") {
+        if (type === "TOGGLED") {
+            return this.gridToggleState_[row][col];
+        } else if (type === "ONESHOT") {
+            return this.gridOneShotState_[row][col];
+        } else if (type === "PRESSED") {
+            return this.gridPressedState_[row][col];
+        } else {
+            return 0;
+        }
+    }
+
+    /**
+     * フレームごとの更新処理を行うメソッド
+     */
+    update() {
+        // ワンショット状態の更新
         for (let i = 0; i < 8; i++) {
             for (let j = 0; j < 8; j++) {
                 this.gridOneShotState_[i][j] = max(this.gridPressedState_[i][j] - this.gridPrevState_[i][j], 0);
             }
         }
 
+        // MIDI出力の送信
         if (this.midiSuccess_) {
             this.midiOutputSend();
         }
 
+        // 前回の状態を保存
         this.gridPrevState_ = structuredClone(this.gridPressedState_);
     }
 
+    /**
+     * フェーダー値を更新するメソッド
+     * @param {number} index - フェーダーのインデックス
+     */
     updateFaderValue(index) {
-        // トグル状態が1（ミュート）の場合は0を設定
-        // トグル状態が0の場合は直前の値を設定
         this.faderValues_[index] = this.faderButtonToggleState_[index] ? 0 : this.faderValuesPrev_[index];
     }
 
+    /**
+     * MIDIメッセージを受信した際の処理
+     * @param {MIDIMessageEvent} message - 受信したMIDIメッセージ
+     */
     onMIDIMessage(message) {
         const [status, note, velocity] = message.data;
 
-        // フェーダーボタンとサイドボタンの処理（ノートオンメッセージ）
+        // フェーダーボタンとサイドボタンの処理
         if (status === 144) {
-            // フェーダーボタンの処理（ノート番号: 100-107）
             if (note >= 100 && note <= 107 || note == 122) {
                 const buttonIndex = note >= 100 && note <= 107 ? note - 100 : 8;
-                // モメンタリー動作の状態更新（押している間のみ1）
                 this.faderButtonState_[buttonIndex] = 1;
-                // トグル動作の状態更新（押したときのみ切り替え）
                 if (velocity > 0) {
                     this.faderButtonToggleState_[buttonIndex] = 1 - this.faderButtonToggleState_[buttonIndex];
-                    // トグル状態が変更されたらフェーダー値を更新
                     this.updateFaderValue(buttonIndex);
                 }
             }
-            // サイドボタンの処理（ノート番号: 112-119）
             else if (note >= 112 && note <= 119) {
                 const buttonIndex = note - 112;
                 this.sideButtonState_[buttonIndex] = 1;
@@ -71,7 +108,7 @@ class APCMiniMK2Manager extends MIDIManager {
             }
         }
 
-        // グリッドボタンの処理（ノートオン/オフメッセージ）
+        // グリッドボタンの処理
         if ((status === 144 || status === 128) && note >= 0 && note <= 63) {
             const row = Math.floor(note / 8);
             const col = note % 8;
@@ -80,18 +117,18 @@ class APCMiniMK2Manager extends MIDIManager {
                 this.gridToggleState_[row][col] = 1 - this.gridToggleState_[row][col];
             }
         }
-        // フェーダーの処理（コントロールチェンジメッセージ）
+        // フェーダーの処理
         else if (status === 176 && note >= 48 && note <= 56) {
             const faderIndex = note - 48;
-            // フェーダー値を0-1の範囲に正規化
             const normalizedValue = velocity / 127;
-            // 直前の値を保存
             this.faderValuesPrev_[faderIndex] = normalizedValue;
-            // トグル状態に応じてフェーダー値を更新
             this.updateFaderValue(faderIndex);
         }
     }
 
+    /**
+     * MIDI出力を送信するメソッド
+     */
     midiOutputSend() {
         if (!this.midiOutput_) return;
 
@@ -100,7 +137,6 @@ class APCMiniMK2Manager extends MIDIManager {
             if (i < 8) {
                 this.midiOutput_.send([0x90, 100 + i, this.faderButtonToggleState_[i] * 127]);
             } else {
-                // 光らず...
                 this.midiOutput_.send([0x90, 122, this.faderButtonToggleState_[i] * 127]);
             }
         }
@@ -131,18 +167,6 @@ class APCMiniMK2Manager extends MIDIManager {
         // フェーダー値の送信
         for (let i = 0; i < 9; i++) {
             this.midiOutput_.send([0xB0, 48 + i, Math.round(this.faderValues_[i] * 127)]);
-        }
-    }
-
-    gridState(row, col, type = "TOGGLED") {
-        if (type === "TOGGLED") {
-            return this.gridToggleState_[row][col];
-        } else if (type === "ONESHOT") {
-            return this.gridOneShotState_[row][col];
-        } else if (type === "PRESSED") {
-            return this.gridPressedState_[row][col];
-        } else {
-            return 0;
         }
     }
 }

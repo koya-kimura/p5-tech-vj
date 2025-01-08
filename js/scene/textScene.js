@@ -1,14 +1,14 @@
-class SampleScene {
+class TextScene {
     constructor(){
         this.layerAlpha_ = 0;
     }
 
-    update(){
-
+    midiAssign() {
+        this.layerAlpha_ = sceneManager.midiManager_.faderValues_[2] * 255;
     }
 
-    midiAssign(){
-        this.layerAlpha_ = sceneManager.midiManager_.faderValues_[1] * 255;
+    update(){
+
     }
 
     draw(tex, spectrum){

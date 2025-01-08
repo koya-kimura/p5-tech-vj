@@ -5,6 +5,7 @@ class MicAudioManager {
         this.fft_ = null;
         this.spectrum_ = null;
         this.debugOutput_ = debugOutput;
+        this.count_ = 0;
     }
 
     setup(fftAnalysisSize=16){
@@ -17,6 +18,7 @@ class MicAudioManager {
     }
 
     analyze(){
+        this.count_ = this.beatCount(this.bpm_);
         this.spectrum_ = this.fft_.analyze();
 
         for (let i in this.spectrum_) {
@@ -26,7 +28,7 @@ class MicAudioManager {
 
     beatCount(bpm) {
         const beatIntervalMs = (60 / bpm) * 1000;
-        const currentTimeMs = this.millis();
+        const currentTimeMs = millis();
         return currentTimeMs / beatIntervalMs;
     }
 }

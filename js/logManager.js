@@ -1,10 +1,10 @@
 /**
  * ログメッセージを管理するクラス
- * ゲーム内のメッセージ表示やデバッグ情報の表示に使用
+ * コンソールをビジュアライズすることができる
  */
 class LogManager {
     /**
-     * @param {number} lifetime - メッセージの表示時間（フレーム数）
+     * @param {number} fadetime - メッセージのフェードアウト時間（フレーム数）
      */
     constructor(fadetime = 15) {
         this.logMessages = [];  // ログメッセージを格納する配列
@@ -20,8 +20,11 @@ class LogManager {
         this.logMessages.push(new LogMessage(timestamp + " " + msg, this.fadetime));
     }
 
-    fpsLog(){
-        if(frameCount % 600 == 0) {
+    /**
+     * 600フレームごとにFPSをログに記録
+     */
+    fpsLog() {
+        if (frameCount % 600 == 0) {
             this.log("FramePerSecond : " + frameRate().toFixed(2));
         }
     }
@@ -50,12 +53,12 @@ class LogManager {
      * すべてのログメッセージを表示
      * @param {number} x - 表示領域の左上X座標
      * @param {number} y - 表示領域の左上Y座標
-     * @param {number} w - 表示領域の幅
+     * @param {number} fsz - フォントサイズ
      * @param {number} h - 表示領域の高さ
      * @param {object} tex - テキスト描画用のオブジェクト（オプション）
      */
     display(x, y, fsz, h, tex) {
-        if (h < this.logMessages.length * fsz * 1.5){
+        if (h < this.logMessages.length * fsz * 1.5) {
             this.logMessages.splice(0, 1);
         }
         for (let i = this.logMessages.length - 1; i >= 0; i--) {
@@ -77,7 +80,7 @@ class LogManager {
 class LogMessage {
     /**
      * @param {string} msg - 表示するメッセージ
-     * @param {number} lifetime - メッセージの表示時間
+     * @param {number} fadetime - メッセージのフェードアウト時間（フレーム数）
      */
     constructor(msg, fadetime) {
         this.msg = msg;
@@ -96,10 +99,11 @@ class LogMessage {
      * メッセージを表示
      * @param {number} x - 表示位置X座標
      * @param {number} y - 表示位置Y座標
+     * @param {number} fsz - フォントサイズ
      * @param {object} tex - テキスト描画用のオブジェクト（オプション）
      */
     display(x, y, fsz, tex) {
-        const alpha = pow(map(this.time, 0, this.fadetime, 0, 1), 1)*255;
+        const alpha = pow(map(this.time, 0, this.fadetime, 0, 1), 1) * 255;
         if (tex) {
             tex.push();
             tex.fill(255, alpha);

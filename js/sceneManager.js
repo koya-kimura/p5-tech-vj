@@ -7,10 +7,10 @@ class SceneManager {
         this.frameTex_ = null;
 
         this.scenes_ = [
+            new GridScene(),
+            new TextScene(),
+            new AudioScene(),
             new SoundObjectScene(),
-            new SampleScene(),
-            new SampleScene(),
-            new SampleScene(),
         ];
         this.sceneTex_ = null;
 
@@ -38,13 +38,14 @@ class SceneManager {
         this.midiManager_.update();
 
         for (const scene of this.scenes_) {
-            scene.update();
             scene.midiAssign();
+            scene.update();
         }
     }
 
     draw() {
-        this.sceneTex_.background(0);
+        const alpha = 255 - this.midiManager_.faderValues_[6] * 255;
+        this.sceneTex_.background(0, alpha);
         for (const scene of this.scenes_) {
             scene.draw(this.sceneTex_, this.micAudioManager_.spectrum_);
         }
@@ -67,6 +68,6 @@ class SceneManager {
     }
 
     midiShaderAssign() {
-
+        // this.postShader_.setUniform("u_gridPressedState", this.midiManager_.gridPressedState_);
     }
 }
