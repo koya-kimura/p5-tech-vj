@@ -3,11 +3,10 @@ precision highp float;
 varying vec2 vTexCoord;
 
 uniform vec2 u_resolution;
+uniform float u_squareCount;
 uniform float u_time;
-
-uniform bool u_monoEnabled;
-uniform bool u_invertEnabled;
-uniform bool u_posterizationEnabled;
+uniform bool u_flash;
+uniform float u_vol;
 
 uniform sampler2D u_mainTex;
 uniform sampler2D u_frameTex;
@@ -21,6 +20,31 @@ float map(float value, float min1, float max1, float min2, float max2){
 
 float random(vec2 st){
     return fract(sin(dot(st.xy,vec2(12.9898,78.233)))*43758.5453123);
+}
+
+vec2 fade(vec2 t){
+    return t*t*t*(t*(t*6.-15.)+10.);
+}
+
+float perlinNoise(vec2 p){
+    vec2 i=floor(p);
+    vec2 f=fract(p);
+    
+    // 4つの頂点での勾配を計算
+    float a=random(i);
+    float b=random(i+vec2(1.,0.));
+    float c=random(i+vec2(0.,1.));
+    float d=random(i+vec2(1.,1.));
+    
+    // フェード関数を適用
+    vec2 u=fade(f);
+    
+    // バイリニア補間
+    return mix(
+        mix(a,b,u.x),
+        mix(c,d,u.x),
+        u.y
+    );
 }
 
 mat2 rot(float angle){
@@ -60,7 +84,17 @@ vec4 invert(vec4 col){
 }
 
 vec4 posterization(vec4 col, float n){
-    return vec4(floor(col.rgb*n)/n, col.a);
+    return vec4(floor(col.rgb*(n+0.5))/n, col.a);
+}
+
+vec4 vignette(vec4 col,vec2 uv,float radius,float softness){
+    float dist=distance(uv,vec2(.5));
+    float vignette=smoothstep(radius,radius-softness,dist);
+    return col*vec4(vec3(1.-vignette),1.);
+}
+
+vec4 strobe(vec4 col){
+    return vec4(1.0);
 }
 
 vec2 gridUVTransform(vec2 uv,float n){
@@ -94,57 +128,71 @@ vec2 gridUVTransform(vec2 uv,float n){
     return (cellIndex+cellUV)*cellSize;
 }
 
-vec4 bloom(vec4 originalColor,sampler2D originalTexture,vec2 texCoord){
-    // 輝度の高い部分を抽出するための係数
-    vec3 luminanceVector=vec3(.2125,.7154,.0721);
+vec4 rgbShift(vec4 col,vec2 uv,float scale,sampler2D tex){
+    // 赤のチャンネルをスケール
+    vec2 redUV=(uv-.5)*(1.0+scale)+.5;
+    vec4 redChannel=texture2D(tex,redUV);
     
-    // 輝度を計算
-    float luminance=dot(luminanceVector,originalColor.rgb);
+    // 他のチャンネルはそのまま
+    vec4 greenChannel=texture2D(tex,uv);
+    vec4 blueChannel=texture2D(tex,uv);
     
-    // 固定の閾値とインテンシティ
-    float threshold=.5;
-    float intensity=1.5;
-    
-    // 閾値以上の明るい部分のみを抽出
-    vec4 brightColor=vec4(0.);
-    if(luminance>threshold){
-        brightColor=originalColor;
-    }
-    
-    // ブルーム効果の適用（簡易的なボックスブラー）
-    vec4 bloom=vec4(0.);
-    float glow=.004;
-    
-    for(int i=-1;i<=1;i++){
-        for(int j=-1;j<=1;j++){
-            vec2 offset=vec2(float(i)*glow,float(j)*glow);
-            bloom+=texture2D(originalTexture,texCoord+offset);
-        }
-    }
-    
-    bloom/=9.;
-    
-    return originalColor+(bloom*brightColor*intensity);
+    return vec4(redChannel.r,greenChannel.g,blueChannel.b,col.a);
 }
 
+vec2 tile(vec2 uv,float n){
+    return fract(uv*n);
+}
+
+vec4 veryCrop(vec4 col, vec2 uv){
+    return abs(uv.y - 0.5) < 0.03 ? col : vec4(0.0);
+}
+
+// ⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️⭐️
+
+uniform bool u_mirrorEnabled;
+uniform bool u_mosaicEnabled;
+uniform bool u_tileEnabled;
+uniform bool u_gridUVTransformEnabled;
+uniform float u_rotateAngle;
+uniform bool u_dripEnabled;
+uniform bool u_threeSplitEnabled;
+// uniform bool u_mirrorEnabled;
+
+uniform bool u_monoEnabled;
+uniform bool u_invertEnabled;
+uniform bool u_posterizationEnabled;
+uniform bool u_binaryEnabled;
+uniform bool u_strobeEnabled;
+uniform float u_vignetteRadius;
+uniform float u_rgbShiftScale;
+uniform bool u_veryCropEnabled;
 
 void main(void){
     vec2 p=vTexCoord;
 
     // ここでテクスチャの座標を変換する ========================================================
 
-    // p = fract(p*4.);
+    p=(p-0.5)*2.0;
+    p*=rot(u_rotateAngle);
+    p=(p+1.0)*0.5;
 
+    if(u_mirrorEnabled) p=mirror(p);
+    if(u_mosaicEnabled) p=mosaic(p,100.);
+    if(u_tileEnabled) p=tile(p,4.);
 
-    p = mirror(p);
+    if(u_dripEnabled){
+        if(p.y>(pow(u_squareCount, 4.0)*perlinNoise(vec2(p.x*10.0+ u_time*10.0)))*0.5 + 0.5){
+            p.x+=sin(u_time*2.0)*random(p)*0.3;
+            p.y=.5;
+        }
+    }
 
+    if(u_gridUVTransformEnabled) p=gridUVTransform(p,4.);
 
-    // p = mosaic(p, 50.);
-
-    // p.x = fract(p.x + u_time * 0.01);
-    // p.y = 0.5;
-
-    // p=gridUVTransform(p,10.);
+    if(u_threeSplitEnabled){
+        p.x = map(fract(p.x*3.0), 0.0, 1.0, 0.33, 0.67);
+    }
 
 
     // ================================================================================
@@ -153,9 +201,13 @@ void main(void){
 
     // ここでメインテクスチャの色を変更する ========================================================
 
-    if(u_posterizationEnabled) mainTexCol=posterization(mainTexCol,2.);
+    mainTexCol=vignette(mainTexCol,p, u_vignetteRadius,.5);
+    mainTexCol=rgbShift(mainTexCol,p,u_rgbShiftScale,u_mainTex);
 
-    mainTexCol=bloom(mainTexCol,u_mainTex,vTexCoord);
+    if(u_posterizationEnabled) mainTexCol=posterization(mainTexCol,2.);
+    if(u_binaryEnabled)mainTexCol=binary(mainTexCol);
+    if(u_strobeEnabled && u_flash)mainTexCol=strobe(mainTexCol);
+    if(u_veryCropEnabled)mainTexCol=veryCrop(mainTexCol,vTexCoord);
 
     // ================================================================================
 
@@ -169,5 +221,43 @@ void main(void){
 
     vec4 debugTexCol=texture2D(u_mainTex,vTexCoord)+texture2D(u_frameTex,vTexCoord);
 
-    gl_FragColor=debugTexCol;
+    // gl_FragColor=debugTexCol;
+    gl_FragColor=col;
 }
+
+
+
+// ゴミ箱 --------------------------------------------------------------------------------
+
+// vec4 bloom(vec4 originalColor,sampler2D originalTexture,vec2 texCoord){
+//     // 輝度の高い部分を抽出するための係数
+//     vec3 luminanceVector=vec3(.2125,.7154,.0721);
+    
+//     // 輝度を計算
+//     float luminance=dot(luminanceVector,originalColor.rgb);
+    
+//     // 固定の閾値とインテンシティ
+//     float threshold=.5;
+//     float intensity=1.5;
+    
+//     // 閾値以上の明るい部分のみを抽出
+//     vec4 brightColor=vec4(0.);
+//     if(luminance>threshold){
+//         brightColor=originalColor;
+//     }
+    
+//     // ブルーム効果の適用（簡易的なボックスブラー）
+//     vec4 bloom=vec4(0.);
+//     float glow=.004;
+    
+//     for(int i=-1;i<=1;i++){
+//         for(int j=-1;j<=1;j++){
+//             vec2 offset=vec2(float(i)*glow,float(j)*glow);
+//             bloom+=texture2D(originalTexture,texCoord+offset);
+//         }
+//     }
+    
+//     bloom/=9.;
+    
+//     return originalColor+(bloom*brightColor*intensity);
+// }

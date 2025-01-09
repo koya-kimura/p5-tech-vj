@@ -1,9 +1,20 @@
 let count;
+let squareCount;
 
 const sceneManager = new SceneManager(130, true);
 const terminal = new LogManager();
 
-const COLOR_PALETTE = ["#10ed21", "#ed1938", "#0121ed", "#eded17", "#ed08ed", "#32eded"];
+const COLOR_PALETTE_ALL = [
+    "#FF0000",
+    "#FFA500",
+    "#FFFF00",
+    "#008000",
+    "#0000FF",
+    "#4B0082",
+    "#800080",
+    "#00FFFF"
+];
+let COLOR_PALETTE;
 
 let FLOW_LOGO;
 
@@ -16,7 +27,7 @@ let SIXTYFOUR_FONT;
 
 const FULLSCREEN_KEY = 32;
 
-function preload(){
+function preload() {
     sceneManager.midiManager_.initializeMIDIDevices();
     sceneManager.loadPostShader("../shader/main.vert", "../shader/main.frag");
 
@@ -31,7 +42,7 @@ function preload(){
     FONT_ARRAY = [DSEG14_FONT, BEBAS_FONT, DMSERIF_FONT, PLAYWRITE_FONT, SIXTYFOUR_FONT];
 }
 
-function setup(){
+function setup() {
     createCanvas(windowWidth, windowHeight, WEBGL);
     pixelDensity(2);
     noCursor();
@@ -39,19 +50,38 @@ function setup(){
     sceneManager.setup();
 }
 
-function draw(){
-
-    count = frameCount * 0.01;
+function draw() {
+    colorPaletteUpdate();
 
     clear();
 
     terminal.fpsLog();
 
     sceneManager.update();
+
+    count = sceneManager.micAudioManager_.count_;
+    squareCount = calculateSquareCount(count);
+
     sceneManager.draw();
 }
 
-function windowResized(){
+function colorPaletteUpdate() {
+    COLOR_PALETTE = [];
+    for (let i in sceneManager.midiManager_.sideButtonToggleState_) {
+        if (sceneManager.midiManager_.sideButtonToggleState_[i] == 0) {
+            COLOR_PALETTE.push(COLOR_PALETTE_ALL[i]);
+        }
+    }
+    if (COLOR_PALETTE.length == 0) {
+        COLOR_PALETTE.push("#ffffff");
+    }
+}
+
+function calculateSquareCount(count) {
+    return abs((count * 2) % 2 - 1)
+}
+
+function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
     sceneManager.resize();
 }
@@ -61,6 +91,7 @@ function keyPressed() {
         let fs = fullscreen();
         fullscreen(!fs);
     }
+    sceneManager.keyPressed(keyCode);
 }
 
 function loadImageSafely(path) {

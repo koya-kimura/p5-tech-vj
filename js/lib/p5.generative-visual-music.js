@@ -167,10 +167,10 @@
         count,
         cycleLength,
         easeDuration,
-        easeFunction = p5.Easing.easeInOutCubic,
         minValue = 0,
         maxValue = 1,
-        seed = 4649
+        seed = 4649,
+        easeFunction = p5.Easing.easeInOutCubic,
     ) {
         if (!this.noiseSeed) {
             throw new Error('p5.js noise function is not available');
